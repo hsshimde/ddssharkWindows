@@ -255,6 +255,22 @@ void send_rtps_packet()
     int rtps_data_size;
     const char *sz_receiver_address = "192.168.10.218";
 
+
+    /*WORD wVersionRequested;
+    WSADATA wsaData;
+    int err;*/
+
+    /* Use the MAKEWORD(lowbyte, highbyte) macro declared in Windef.h */
+    //wVersionRequested = MAKEWORD(2, 2);
+
+    //err = WSAStartup(wVersionRequested, &wsaData);
+    //if (err != 0) {
+    //    /* Tell the user that we could not find a usable */
+    //    /* Winsock DLL.                                  */
+    //    printf("WSAStartup failed with error: %d\n", err);
+    //    return 1;
+    //}
+
     // const TCHAR wszFuckIngClassName
 
     memset(&receiver_address, 0, sizeof(struct sockaddr_in));
@@ -270,6 +286,7 @@ void send_rtps_packet()
     socket_handle = socket(PF_INET, SOCK_DGRAM, 0);
     if (socket_handle == -1)
     {
+        DWORD dwError = GetLastError();
         printf("Failed to Create Socket\n");
         return;
     }
@@ -423,7 +440,7 @@ int insert_rtps_submessage(unsigned char *submessage_position, struct real_data*
     // };
     struct Submessage *p_submessage;
     int submessage_size;
-    int (*insert_what)(unsigned char *submessage_pos, struct Submessage *p_submessage, enum SubmessageKind submessage_kind, enum DataKind data_kind);
+    int (*insert_what)(unsigned char *submessage_pos, struct real_data* p_rData,struct Submessage *p_submessage, enum SubmessageKind submessage_kind, enum DataKind data_kind);
     // int submessage_size = 0;
     p_submessage = create_submessage();
     switch (sub_kind)

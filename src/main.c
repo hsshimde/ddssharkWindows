@@ -156,9 +156,21 @@
 
 int main(int argc, char *argv[])
 {
-
     // char input[10];
     int input;
+    WORD wVersionRequested;
+    WSADATA wsaData;
+    int err;
+    wVersionRequested = MAKEWORD(2, 2);
+
+    err = WSAStartup(wVersionRequested, &wsaData);
+    if (err != 0)
+    {
+        /* Tell the user that we could not find a usable */
+        /* Winsock DLL.                                  */
+        printf("WSAStartup failed with error: %d\n", err);
+        return 1;
+    }
     // printf("1. Packet Caputuring  2. Packet Sending\n");
     input = 0;
     while (1)
