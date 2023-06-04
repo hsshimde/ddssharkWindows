@@ -392,13 +392,13 @@ struct real_data
     uint16_t seq_size;
 };
 
-int insert_rtps_submessage(unsigned char* sub_pos, struct real_data* r_data ,enum SubmessageKind submessage_kind, enum DataKind data_kind);
+int insert_rtps_submessage(char* sub_pos, struct real_data* r_data ,enum SubmessageKind submessage_kind, enum DataKind data_kind);
 
-int insert_rtps_submessage_info_timestamp(unsigned char* sub_pos, struct real_data* r_data,struct Submessage* p_submessage,enum SubmessageKind submessage_kind, enum DataKind data_kind);
+int insert_rtps_submessage_info_timestamp(char* sub_pos, struct real_data* r_data,struct Submessage* p_submessage,enum SubmessageKind submessage_kind, enum DataKind data_kind);
 
-int insert_rtps_submessage_info_destination(unsigned char* sub_pos, struct real_data* r_data, struct Submessage* p_submessage,enum SubmessageKind submessage_kind, enum DataKind data_kind);
+int insert_rtps_submessage_info_destination(char* sub_pos, struct real_data* r_data, struct Submessage* p_submessage,enum SubmessageKind submessage_kind, enum DataKind data_kind);
 
-int insert_rtps_submessage_data(unsigned char* sub_pos, struct real_data* r_data,struct Submessage* p_submessage,enum SubmessageKind submessage_kind, enum DataKind data_kind);
+int insert_rtps_submessage_data(char* sub_pos, struct real_data* r_data,struct Submessage* p_submessage,enum SubmessageKind submessage_kind, enum DataKind data_kind);
 
 //int put_user_data(struct real_data* r_data, size_t* p_user_data_size);
 
@@ -417,7 +417,7 @@ void my_packet_receive_handler_callback(unsigned char *param, const struct pcap_
 int write_submessage_header(struct Submessage* p_submessage, enum SubmessageKind submessage_kind, enum DataKind data_kind);
 
 
-int add_submessage_to_packet(unsigned char* packet_buffer, struct Submessage* p_submessage);
+int add_submessage_to_packet(char* packet_buffer, struct Submessage* p_submessage);
 
 int add_extra_flags_to_submessage(struct Submessage* p_submessage, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
@@ -451,7 +451,7 @@ int add_user_data_to_submessage(struct Submessage* p_submessage, struct real_dat
 
 int add_sentinel_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
-
+int add_octets_to_inlineQos_to_submessage(struct Submessage* p_submessage, const uint16_t octets_to_inline_qos);
 
 
 // int add_guid_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);

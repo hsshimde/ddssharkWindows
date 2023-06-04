@@ -171,13 +171,27 @@ int main(int argc, char *argv[])
         printf("WSAStartup failed with error: %d\n", err);
         return 1;
     }
+
+    if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) 
+    {
+        /* Tell the user that we could not find a usable */
+        /* WinSock DLL.                                  */
+        printf("Could not find a usable version of Winsock.dll\n");
+        WSACleanup();
+        return 1;
+    }
+    else
+    {
+        printf("The Winsock 2.2 dll was found okay\n");
+	}
+
     // printf("1. Packet Caputuring  2. Packet Sending\n");
     input = 0;
     while (1)
     {
         /* code */
         printf("1. Packet Caputuring  2. Packet Sending\n");
-        scanf_s("%d", &input, sizeof(int));
+        scanf_s("%d", &input);
         fflush(stdin);
 
         if(input == 1)
@@ -186,7 +200,6 @@ int main(int argc, char *argv[])
         }
         else if(input == 2)
         {
-            // start_sending_rtps_packet();
             send_rtps_packet();
         }
         else if((char)input == 'q' || (char)input == 'Q')
@@ -198,11 +211,12 @@ int main(int argc, char *argv[])
             printf("=====Invalid Input========\n");
         }
 
-
         // if(input == '')
     }
     printf("Program Ended\n");
+    WSACleanup();
     return 0;
+}
 
     // char error_buffer[PCAP_ERRBUF_SIZE];
     // pcap_if_t *p_interfaces = NULL;
@@ -293,7 +307,6 @@ int main(int argc, char *argv[])
     // pcap_loop(p_ad_handle, -1, my_packet_receive_handler_callback, NULL);
     // pcap_close(p_ad_handle);
 
-}
 //
 //void check_host_name(int host_name)
 //{
