@@ -154,6 +154,10 @@
 // #define	ETHERTYPE_IPV6		0x86dd		/* IP protocol version 6 */
 // #define ETHERTYPE_LOOPBACK	0x9000		/* used to test interfaces */
 
+
+extern const char TOPIC_NAME[] = "HelloWorld";
+extern const char TYPE_NAME[] = "Hello::Msg";
+
 int main(int argc, char *argv[])
 {
     // char input[10];
@@ -202,7 +206,7 @@ int main(int argc, char *argv[])
         {
             send_rtps_packet();
         }
-        else if((char)input == 'q' || (char)input == 'Q')
+        else if(input == 0 )
         {
             break;
         }

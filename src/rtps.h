@@ -384,12 +384,22 @@ int put_rtps_header(unsigned char* header);
 
 int setup_rtps_packet(unsigned char* packet);
 
+enum DataElementType
+{
+    DATA_ELEMENT_TYPE_INT,
+    DATA_ELEMENT_TYPE_STRING,
+};
+
 
 struct real_data
 {
     unsigned char* buffer;
     uint16_t data_size;
     uint16_t seq_size;
+    const char* topic_name;
+    const char* type_name;
+    int element_count;
+    char* element_type;
 };
 
 int insert_rtps_submessage(char* sub_pos, struct real_data* r_data ,enum SubmessageKind submessage_kind, enum DataKind data_kind);
@@ -432,6 +442,7 @@ int add_inline_qos_to_submessage(struct Submessage* p_submessage, struct real_da
 int add_protocol_version_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
 
+
 int add_vendor_id_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
 
@@ -448,6 +459,7 @@ int add_lease_duration_to_submessage(struct Submessage* p_submessage, struct rea
 
 int add_user_data_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
+int process_user_topic_data(struct Submessage* p_submessage, struct real_data* p_rData);
 
 int add_sentinel_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
@@ -456,4 +468,19 @@ int add_octets_to_inlineQos_to_submessage(struct Submessage* p_submessage, const
 
 // int add_guid_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
+int add_encapsulation_info_to_submessage(struct Submessage* p_submessage, struct real_data* p_data, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
+int add_endpoint_guid_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
+
+int add_group_entity_id_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
+
+int add_topic_name_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
+
+int add_type_name_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
+
+
+int add_entity_name_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
+
+int add_reliability_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
+
+int add_type_consistency_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
