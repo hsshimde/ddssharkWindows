@@ -1,6 +1,16 @@
 
 #include "rtps.h"
 
+extern const char TYPE_NAME[];
+extern const char TOPIC_NAME[];
+
+
+//enum typedef 
+//typedef enum {FALSE, TRUE}; 
+typedef int BOOL;
+
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+
 void print_rtps_header(const unsigned char* p_header)
 {
 	unsigned char rtps_literal[5];
@@ -253,7 +263,7 @@ void send_rtps_packet()
 	struct sockaddr_in receiver_address;
 	int sent_data_in_bytes;
 	int rtps_data_size;
-	const char* sz_receiver_address = "192.168.10.218";
+	const char* sz_receiver_address = "192.168.10.183";
 
 
 	/*WORD wVersionRequested;
@@ -323,11 +333,14 @@ int setup_rtps_packet(unsigned char* packet)
 	int header_size;
 	int submessage_size;
 	unsigned char* submessage_pos;
-
+	int input;
+	BOOL bsubmessageInput;
 	struct real_data rData;
 	rData.seq_size = 1;
 	rData.buffer = NULL;
 	rData.data_size = 1;
+	rData.topic_name = TOPIC_NAME;
+	rData.type_name = TYPE_NAME;
 	//rData.buffer
 
 
@@ -345,9 +358,62 @@ int setup_rtps_packet(unsigned char* packet)
 	packet_size += submessage_size;
 	submessage_pos += submessage_size;
 
-	submessage_size = insert_rtps_submessage(submessage_pos, &rData, DATA, DATA_KIND_PARTICIPANT_DISCOVERY);
+	/*submessage_size = insert_rtps_submessage(submessage_pos, &rData, DATA, DATA_KIND_PARTICIPANT_DISCOVERY);
 	packet_size += submessage_size;
-	submessage_pos += submessage_size;
+	submessage_pos += submessage_size;*/
+
+	rData.element_count = 2;
+	rData.element_type = (char*)(malloc(rData.element_count));
+	rData.element_type[0] = (char)(DATA_ELEMENT_TYPE_INT);
+	rData.element_type[1] = (char)(DATA_ELEMENT_TYPE_STRING);
+
+	while (1)
+	{
+		/* code */
+		printf("1. Discovery Packet\n2. Writer Endpoint Packet\n3. Reader Endpoint Packet\n4.Topic Data Packet\n0. End making a packet\n");
+		scanf_s("%d", &input);
+		fflush(stdin);
+
+		if (input == 1)
+		{
+			submessage_size = insert_rtps_submessage(submessage_pos, &rData, DATA, DATA_KIND_PARTICIPANT_DISCOVERY);
+			bsubmessageInput = TRUE;
+		}
+		else if (input == 2)
+		{
+			submessage_size = insert_rtps_submessage(submessage_pos, &rData, DATA, DATA_KIND_ENDPOINT_DISCOVERY_WRITER);
+			bsubmessageInput = TRUE;
+		}
+		else if (input == 3)
+		{
+			submessage_size = insert_rtps_submessage(submessage_pos, &rData, DATA, DATA_KIND_ENDPOINT_DISCOVERY_READER);
+			bsubmessageInput = TRUE;
+		}
+		else if (input == 4)
+		{
+			submessage_size = insert_rtps_submessage(submessage_pos, &rData, DATA, DATA_KIND_USER_DATA);
+			bsubmessageInput = TRUE;
+		}
+		//else if(i)
+		else if (input == 0)
+		{
+			break;
+		}
+		else
+		{
+			printf("=====Invalid Input========\n");
+			bsubmessageInput = FALSE;
+		}
+		if (bsubmessageInput)
+		{
+			packet_size += submessage_size;
+			submessage_pos += submessage_size;
+		}
+
+		// if(input == '')
+	}
+	free(rData.element_type);
+	//submessage_size 
 
 	return packet_size;
 
@@ -639,33 +705,36 @@ int insert_rtps_submessage_data(char* sub_pos, struct real_data* p_rData, struct
 	cpy_size = add_reader_writer_entity_id_to_submessage(p_submessage, sub_kind, data_kind);
 	submsg_size += cpy_size;
 	octets_to_inline_qos += cpy_size;
-	cpy_size	= add_write_seq_number_to_submessage(p_submessage, p_rData,sub_kind, data_kind);
+	cpy_size = add_write_seq_number_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
 	submsg_size += cpy_size;
 	octets_to_inline_qos += cpy_size;
 	submsg_size += add_octets_to_inlineQos_to_submessage(p_submessage, (uint16_t)octets_to_inline_qos);
 
 
-
-
 	submsg_size += add_inline_qos_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
-	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x00;
+	/*p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x00;
 	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x03;
 	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x00;
-	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x00;
-	submsg_size += 4;
+	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x00;*/
+	//submsg_size += 4;
+	submsg_size += add_encapsulation_info_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
 	submsg_size += add_protocol_version_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
 	submsg_size += add_vendor_id_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
+	submsg_size += add_topic_name_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
+	submsg_size += add_type_name_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
 	submsg_size += add_locator_info_to_submessage(p_submessage, p_rData, sub_kind, data_kind, domain_id, participant_id);
 	submsg_size += add_lease_duration_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
 	submsg_size += add_participant_guid_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
 	submsg_size += add_enpoint_info_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
 	submsg_size += add_user_data_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
+	submsg_size += add_entity_name_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
+	submsg_size += add_reliability_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
 	submsg_size += add_sentinel_to_submessage(p_submessage, p_rData, sub_kind, data_kind);
-	//submsg_size += 2;
+
 	p_header->submessageLength = submsg_size;
 	return submsg_size;
 	//submsg_size+=a
-	
+
 	//submsg_size 
 
 
@@ -677,283 +746,283 @@ int insert_rtps_submessage_data(char* sub_pos, struct real_data* p_rData, struct
 	 p_encap_sz_data->encap_kind[1] = 0x03;
 	 p_encap_sz_data->encap_options[0] = 0x00;
 	 p_encap_sz_data->encap_options[1] = 0x00;*/
-	//submsg_size+=add_
+	 //submsg_size+=add_
 
-	//submsg_size += add_
-	// if(write_submessage_header(p_submessage, DATA, data_kind) == FALSE)
-	// {
-	//     return FALSE;
-	// }
-
-	// SubMessage ID
-	//  sub_pos[0] = 0x15;
-
-	// submsg_size = 0;
-	// const char param_dat
-	
-
-	// p_data = (struct sm_data *)sub_pos;
-	// submessage ID
-	// p_data->sub_id = 0x15;
-	// flag data
-	// p_data->flags = 0x07;
-	/// extra flag
-	// p_data->extra_flags = 0x00;
-	//add_extra_flags(p_submessage, sub_kind, data_kind);
-	// bytes count to inline qos
-	//p_data->octets_to_inline_qos = (uint16_t)(2 * (sizeof(struct entity_id)) + sizeof(struct writer_seq_number));
-
-	//add_reader_writer_entity_id(p_submessage, sub_kind, data_kind);
-
-
-	// add_reader
-
-
-
-// int add_reader_writer_entity_id(struct Submessage* p_submessage, enum SubmessageKind sub_kind, enum DataKind data_kind);
-
-	// Reader ID
-	//     typedef enum
-	// {
-	//     // RTPS_PACKET_KIND_PARTICIPANT_DISCOVERY = 0x01,
-	//     // RTPS_PACKET_KIND_ENDPOINT_DISCONVERY_READER = 0x02,
-	//     // RTPS_PACKET_KIND_ENDPOINT_DISCOVERY_WRITER = 0x03
-	//     DATA_KIND_PARTICIPANT_DISCOVERY = 0x01,
-	//     DATA_KIND_ENDPOINT_DISCOVERY_READER = 0x02,
-	//     DATA_KIND_ENDPOINT_DISCOVERY_WRITER = 0x03
-
-	// }DataKind;
-	// p_reader_id = &(p_data->reader_id);
-	// p_writer_id = &(p_data->writer_id);
-
-	// if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY)
-	// {
-	//     p_reader_id->key[0] = 0x00;
-	//     p_reader_id->key[1] = 0x01;
-	//     p_reader_id->key[2] = 0x00;
-	//     p_reader_id->kind = 0xc7;
-
-	//     // Writer ID
-	//     p_writer_id->key[0] = 0x00;
-	//     p_writer_id->key[1] = 0x01;
-	//     p_writer_id->key[2] = 0x00;
-	//     // p_reader_id->kind = 0xc2;
-	//     p_writer_id->kind = 0xc2;
-	// }
-	// else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER)
-	// {
-	//     p_reader_id->key[0] = 0x00;
-	//     p_reader_id->key[1] = 0x00;
-	//     p_reader_id->key[2] = 0x03;
-	//     p_reader_id->kind = 0xc7;
-
-	//     // Writer ID
-	//     p_writer_id->key[0] = 0x00;
-	//     p_writer_id->key[1] = 0x0;
-	//     p_writer_id->key[2] = 0x03;
-	//     p_writer_id->kind = 0xc2;
-	// }
-	// else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_READER)
-	// {
-	//     p_reader_id->key[0] = 0x00;
-	//     p_reader_id->key[1] = 0x00;
-	//     p_reader_id->key[2] = 0x04;
-	//     p_reader_id->kind = 0xc7;
-
-	//     // Writer ID
-	//     p_writer_id->key[0] = 0x00;
-	//     p_writer_id->key[1] = 0x0;
-	//     p_writer_id->key[2] = 0x04;
-	//     p_writer_id->kind = 0xc2;
-	// }
-	// else // User Data Reader || User Data Writer....
-	// {
-	// }
-
-	// Write Seq Number
-
-
-	/*p_seq_num = &(p_data->w_seq_num);
-	p_seq_num->former = 0x00;
-	p_seq_num->latter = 0x01;
-
-	p_inline_qos = &(p_data->in_qos);
-	p_key_hash = &(p_inline_qos->key_hash);
-	p_param_info = &(p_key_hash->info);
-	p_param_info->param_id = (uint16_t)0x0070;
-	p_param_info->param_len = (uint16_t)(sizeof(struct guid));
-
-	p_sentinel = &(p_inline_qos->sentinel);
-	p_sentinel->param_id = 0x01;*/
-
-
-
-
-
-	/* p_encap_sz_data = &(p_data->sz_data_encap);
-	 p_encap_sz_data->encap_kind[0] = 0x00;
-	 p_encap_sz_data->encap_kind[1] = 0x03;
-	 p_encap_sz_data->encap_options[0] = 0x00;
-	 p_encap_sz_data->encap_options[1] = 0x00;
-
-
-
-	 p_core_sz_data = &(p_encap_sz_data->sd_core);*/
-
-	 //     struct serialized_data_core
+	 //submsg_size += add_
+	 // if(write_submessage_header(p_submessage, DATA, data_kind) == FALSE)
 	 // {
-	 //     // uint16_t encap_kind;
-	 //     // uint16_t encap_option;
-	 //     struct sd_parameter_protocol_version proc_version;
-	 //     struct sd_parameter_vendor_id vendor_id;
-	 //     struct sd_parameter_metatraffic_locator meta_multicast_locator;
-	 //     struct sd_parameter_metatraffic_locator meta_unicast_locator;
-	 //     struct sd_parameter_default_multicast_locator default_multi;
-	 //     struct sd_parameter_default_unicast_locator default_uni;
-	 //     struct sd_parameter_participant_lease_duration;
-	 //     struct sd_parameter_participant_guid guid;
-	 //     struct sd_parameter_builtin_endpoint_set endpoint_set;
-	 //     struct sd_user_data user_data;
-	 //     struct sd_parameter_sentinel sentinel;
-	 // };
+	 //     return FALSE;
+	 // }
 
-	 //  struct sd_parameter_protocol_version* p_proc_version;
-	 //     struct sd_parameter_vendor_id* p_vendor_id ;
-	 //     struct sd_parameter_metatraffic_locator* p_meta_multicast_locator ;
-	 //     struct sd_parameter_metatraffic_locator* p_meta_unicast_locator ;
-	 //     struct sd_parameter_default_mulitcast_locator* p_default_multi_locator ;
-	 //     struct sd_parameter_default_unicast_locator* p_default_uni_locator;
-	 //     struct sd_parameter_participant_lease_duration* p_lease_duration;
-	 //     struct sd_parameter_participant_guid* p_part_guid;
-	 //     struct sd_parameter_builtin_endpoint_set* p_endpoint_set;
-	 //     struct sd_user_data* p_user_data;
-	 //     struct sd_parameter_sentinel* p_param_sentinel;
+	 // SubMessage ID
+	 //  sub_pos[0] = 0x15;
 
-	 // protocol version
-	// p_param_proc_version = &(p_core_sz_data->proc_version);
-	// p_param_info = &(p_param_proc_version->info);
-	// p_param_info->param_id = (uint16_t)0x15;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_protocol_version) - sizeof(struct param_info));
+	 // submsg_size = 0;
+	 // const char param_dat
 
-	// p_protocol_ver = &(p_param_proc_version->proc_version);
-	// p_protocol_ver->major = (uint8_t)0x02;
-	// p_protocol_ver->minor = (uint8_t)0x01;
 
-	// // vendor id
-	// p_param_vendor_id = &(p_core_sz_data->vendor_id);
-	// p_param_info = &(p_param_vendor_id->info);
-	// p_param_info->param_id = (uint16_t)0x16;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_vendor_id) - sizeof(struct param_info));
-	// p_ven_id = &(p_param_vendor_id->ven_id);
-	// p_ven_id->former = (uint8_t)0x01;
-	// p_ven_id->latter = (uint8_t)0x11;
+	 // p_data = (struct sm_data *)sub_pos;
+	 // submessage ID
+	 // p_data->sub_id = 0x15;
+	 // flag data
+	 // p_data->flags = 0x07;
+	 /// extra flag
+	 // p_data->extra_flags = 0x00;
+	 //add_extra_flags(p_submessage, sub_kind, data_kind);
+	 // bytes count to inline qos
+	 //p_data->octets_to_inline_qos = (uint16_t)(2 * (sizeof(struct entity_id)) + sizeof(struct writer_seq_number));
 
-	// p_meta_multicast_locator = &(p_core_sz_data->meta_multicast_locator);
-	// p_param_info = &(p_meta_multicast_locator->info);
-	// p_param_info->param_id = (uint16_t)0x0033;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_metatraffic_locator) - sizeof(struct param_info));
-	// p_locator = &(p_meta_multicast_locator->locator);
-	// p_locator->kind = (uint32_t)0x01;
-	// p_locator->port = SPDP_WELL_KNOWN_MULTICAST_PORT(domain_id);
+	 //add_reader_writer_entity_id(p_submessage, sub_kind, data_kind);
 
-	// p_meta_unicast_locator = &(p_core_sz_data->meta_unicast_locator);
-	// p_param_info = &(p_meta_unicast_locator->info);
-	// p_param_info->param_id = (uint16_t)0x0032;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_metatraffic_locator) - sizeof(struct param_info));
-	// p_locator = &(p_meta_unicast_locator->locator);
-	// p_locator->kind = (uint32_t)0x01;
-	// p_locator->port = SPDP_WELL_KNOWN_UNICAST_PORT(domain_id, participant_id);
 
-	// p_default_multi_locator = &(p_core_sz_data->default_multi);
-	// p_param_info = &(p_default_multi_locator->info);
-	// p_param_info->param_id = (uint16_t)0x0048;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_default_multicast_locator) - sizeof(struct param_info));
-	// p_ch_user_data = p_default_multi_locator->param_data;
-	// memset(p_ch_user_data, 0, 24);
-	// p_ch_user_data[0] = 0x01;
-	// p_ch_user_data[19] = 0xef;
-	// p_ch_user_data[20] = 0xff;
-	// p_ch_user_data[21] = 0xf0;
-	// p_ch_user_data[22] = 0x00;
-	// p_ch_user_data[23] = 0x01;
-	// // p_default_multicast_data = p_default_multi_locator->param_data;
-
-	// // p_locator = &(p_default_muilti_locator->locator);
-	// // p_locator
-
-	// // p_locator->
-	// // p_locator->port =
-	// // p_meta_m
-	// // uint32_t kind;
-	// // uint32_t port;
-
-	// p_default_uni_locator = &(p_core_sz_data->default_uni);
-	// p_param_info = &(p_default_uni_locator->info);
-	// p_param_info->param_id = (uint16_t)0x0031;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_default_unicast_locator) - sizeof(struct param_info));
-	// p_locator = &(p_default_uni_locator->locator);
-	// p_locator->kind = (uint32_t)0x01;
-	// p_locator->port = USER_UNICAST_PORT(domain_id, participant_id);
+	 // add_reader
 
 
 
+ // int add_reader_writer_entity_id(struct Submessage* p_submessage, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
-	// p_lease_duration = &(p_core_sz_data->participant_lease_dur);
-	// p_param_info = &(p_lease_duration->info);
-	// p_param_info->param_id = (uint16_t)0x02;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_participant_lease_duration) - sizeof(struct param_info));
-	// p_lease_dur = &(p_lease_duration->lease_dur);
-	// p_lease_dur->seconds = (uint32_t)0x0a;
-	// p_lease_dur->fraction = (uint32_t)0x00;
+	 // Reader ID
+	 //     typedef enum
+	 // {
+	 //     // RTPS_PACKET_KIND_PARTICIPANT_DISCOVERY = 0x01,
+	 //     // RTPS_PACKET_KIND_ENDPOINT_DISCONVERY_READER = 0x02,
+	 //     // RTPS_PACKET_KIND_ENDPOINT_DISCOVERY_WRITER = 0x03
+	 //     DATA_KIND_PARTICIPANT_DISCOVERY = 0x01,
+	 //     DATA_KIND_ENDPOINT_DISCOVERY_READER = 0x02,
+	 //     DATA_KIND_ENDPOINT_DISCOVERY_WRITER = 0x03
 
-	// p_part_guid = &(p_core_sz_data->participant_guid);
-	// p_param_info = &(p_part_guid->info);
-	// p_param_info->param_id = (uint16_t)0x50;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_participant_guid) - sizeof(struct param_info));
-	// p_guid = &(p_part_guid->this_guid);
-	// p_guid_prefix = &(p_guid->prefix);
-	// p_entity_id = &(p_guid->last_id);
-	// p_guid_prefix->host_id = htonl(0xc0a80ab7);
-	// p_guid_prefix->app_id = htonl(0xdffbff64);
-	// p_guid_prefix->instance_id = htonl(0xb1190000);
-	// p_entity_id->key[0] = 0x00;
-	// p_entity_id->key[1] = 0x00;
-	// p_entity_id->key[2] = 0x01;
-	// p_entity_id->kind = 0xc1;
+	 // }DataKind;
+	 // p_reader_id = &(p_data->reader_id);
+	 // p_writer_id = &(p_data->writer_id);
 
-	// p_endpoint_set = &(p_core_sz_data->endpoint_set);
-	// p_param_info = &(p_endpoint_set->info);
-	// p_param_info->param_id = (uint16_t)0x58;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_builtin_endpoint_set) - sizeof(struct param_info));
-	// p_endpoint_set->flags = 0x0c3f;
+	 // if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY)
+	 // {
+	 //     p_reader_id->key[0] = 0x00;
+	 //     p_reader_id->key[1] = 0x01;
+	 //     p_reader_id->key[2] = 0x00;
+	 //     p_reader_id->kind = 0xc7;
 
-	// // p_guid_prefix->host_id = htonl(0xc0a80ab7);
-	// // p_guid_prefix->app_id = htonl(0xdffbff64);
-	// // p_guid_prefix->instance_id = htonl(0xb1190000);
+	 //     // Writer ID
+	 //     p_writer_id->key[0] = 0x00;
+	 //     p_writer_id->key[1] = 0x01;
+	 //     p_writer_id->key[2] = 0x00;
+	 //     // p_reader_id->kind = 0xc2;
+	 //     p_writer_id->kind = 0xc2;
+	 // }
+	 // else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER)
+	 // {
+	 //     p_reader_id->key[0] = 0x00;
+	 //     p_reader_id->key[1] = 0x00;
+	 //     p_reader_id->key[2] = 0x03;
+	 //     p_reader_id->kind = 0xc7;
 
-	// p_user_data = &(p_core_sz_data->user_data);
-	// p_param_info = &(p_user_data->info);
-	// p_param_info->param_id = 0x8000;
-	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_user_data) - sizeof(struct param_info));
-	// p_ch_user_data = p_user_data->parameter_data;
-	// p_ch_user_data[0] = (unsigned char)0x02;
-	// p_ch_user_data[1] = (unsigned char)0x08;
-	// p_ch_user_data[2] = (unsigned char)0x00;
-	// p_ch_user_data[3] = (unsigned char)0x00;
+	 //     // Writer ID
+	 //     p_writer_id->key[0] = 0x00;
+	 //     p_writer_id->key[1] = 0x0;
+	 //     p_writer_id->key[2] = 0x03;
+	 //     p_writer_id->kind = 0xc2;
+	 // }
+	 // else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_READER)
+	 // {
+	 //     p_reader_id->key[0] = 0x00;
+	 //     p_reader_id->key[1] = 0x00;
+	 //     p_reader_id->key[2] = 0x04;
+	 //     p_reader_id->kind = 0xc7;
 
-	// // p_param_info->param_len =
+	 //     // Writer ID
+	 //     p_writer_id->key[0] = 0x00;
+	 //     p_writer_id->key[1] = 0x0;
+	 //     p_writer_id->key[2] = 0x04;
+	 //     p_writer_id->kind = 0xc2;
+	 // }
+	 // else // User Data Reader || User Data Writer....
+	 // {
+	 // }
 
-	// p_param_sentinel = &(p_core_sz_data->sentinel);
-	// p_param_sentinel->param_id = (uint16_t)0x01;
+	 // Write Seq Number
 
 
-	///* p_data->octets_to_next_header = 0;
-	// p_data->octets_to_next_header += (uint16_t)sizeof(struct sm_data);
-	// p_data->octets_to_next_header -= 4;*/
+	 /*p_seq_num = &(p_data->w_seq_num);
+	 p_seq_num->former = 0x00;
+	 p_seq_num->latter = 0x01;
 
-	// submsg_size = (int)(sizeof(struct sm_data));
-	/*submsg_size = 1;
-	return submsg_size;*/
+	 p_inline_qos = &(p_data->in_qos);
+	 p_key_hash = &(p_inline_qos->key_hash);
+	 p_param_info = &(p_key_hash->info);
+	 p_param_info->param_id = (uint16_t)0x0070;
+	 p_param_info->param_len = (uint16_t)(sizeof(struct guid));
+
+	 p_sentinel = &(p_inline_qos->sentinel);
+	 p_sentinel->param_id = 0x01;*/
+
+
+
+
+
+	 /* p_encap_sz_data = &(p_data->sz_data_encap);
+	  p_encap_sz_data->encap_kind[0] = 0x00;
+	  p_encap_sz_data->encap_kind[1] = 0x03;
+	  p_encap_sz_data->encap_options[0] = 0x00;
+	  p_encap_sz_data->encap_options[1] = 0x00;
+
+
+
+	  p_core_sz_data = &(p_encap_sz_data->sd_core);*/
+
+	  //     struct serialized_data_core
+	  // {
+	  //     // uint16_t encap_kind;
+	  //     // uint16_t encap_option;
+	  //     struct sd_parameter_protocol_version proc_version;
+	  //     struct sd_parameter_vendor_id vendor_id;
+	  //     struct sd_parameter_metatraffic_locator meta_multicast_locator;
+	  //     struct sd_parameter_metatraffic_locator meta_unicast_locator;
+	  //     struct sd_parameter_default_multicast_locator default_multi;
+	  //     struct sd_parameter_default_unicast_locator default_uni;
+	  //     struct sd_parameter_participant_lease_duration;
+	  //     struct sd_parameter_participant_guid guid;
+	  //     struct sd_parameter_builtin_endpoint_set endpoint_set;
+	  //     struct sd_user_data user_data;
+	  //     struct sd_parameter_sentinel sentinel;
+	  // };
+
+	  //  struct sd_parameter_protocol_version* p_proc_version;
+	  //     struct sd_parameter_vendor_id* p_vendor_id ;
+	  //     struct sd_parameter_metatraffic_locator* p_meta_multicast_locator ;
+	  //     struct sd_parameter_metatraffic_locator* p_meta_unicast_locator ;
+	  //     struct sd_parameter_default_mulitcast_locator* p_default_multi_locator ;
+	  //     struct sd_parameter_default_unicast_locator* p_default_uni_locator;
+	  //     struct sd_parameter_participant_lease_duration* p_lease_duration;
+	  //     struct sd_parameter_participant_guid* p_part_guid;
+	  //     struct sd_parameter_builtin_endpoint_set* p_endpoint_set;
+	  //     struct sd_user_data* p_user_data;
+	  //     struct sd_parameter_sentinel* p_param_sentinel;
+
+	  // protocol version
+	 // p_param_proc_version = &(p_core_sz_data->proc_version);
+	 // p_param_info = &(p_param_proc_version->info);
+	 // p_param_info->param_id = (uint16_t)0x15;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_protocol_version) - sizeof(struct param_info));
+
+	 // p_protocol_ver = &(p_param_proc_version->proc_version);
+	 // p_protocol_ver->major = (uint8_t)0x02;
+	 // p_protocol_ver->minor = (uint8_t)0x01;
+
+	 // // vendor id
+	 // p_param_vendor_id = &(p_core_sz_data->vendor_id);
+	 // p_param_info = &(p_param_vendor_id->info);
+	 // p_param_info->param_id = (uint16_t)0x16;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_vendor_id) - sizeof(struct param_info));
+	 // p_ven_id = &(p_param_vendor_id->ven_id);
+	 // p_ven_id->former = (uint8_t)0x01;
+	 // p_ven_id->latter = (uint8_t)0x11;
+
+	 // p_meta_multicast_locator = &(p_core_sz_data->meta_multicast_locator);
+	 // p_param_info = &(p_meta_multicast_locator->info);
+	 // p_param_info->param_id = (uint16_t)0x0033;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_metatraffic_locator) - sizeof(struct param_info));
+	 // p_locator = &(p_meta_multicast_locator->locator);
+	 // p_locator->kind = (uint32_t)0x01;
+	 // p_locator->port = SPDP_WELL_KNOWN_MULTICAST_PORT(domain_id);
+
+	 // p_meta_unicast_locator = &(p_core_sz_data->meta_unicast_locator);
+	 // p_param_info = &(p_meta_unicast_locator->info);
+	 // p_param_info->param_id = (uint16_t)0x0032;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_metatraffic_locator) - sizeof(struct param_info));
+	 // p_locator = &(p_meta_unicast_locator->locator);
+	 // p_locator->kind = (uint32_t)0x01;
+	 // p_locator->port = SPDP_WELL_KNOWN_UNICAST_PORT(domain_id, participant_id);
+
+	 // p_default_multi_locator = &(p_core_sz_data->default_multi);
+	 // p_param_info = &(p_default_multi_locator->info);
+	 // p_param_info->param_id = (uint16_t)0x0048;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_default_multicast_locator) - sizeof(struct param_info));
+	 // p_ch_user_data = p_default_multi_locator->param_data;
+	 // memset(p_ch_user_data, 0, 24);
+	 // p_ch_user_data[0] = 0x01;
+	 // p_ch_user_data[19] = 0xef;
+	 // p_ch_user_data[20] = 0xff;
+	 // p_ch_user_data[21] = 0xf0;
+	 // p_ch_user_data[22] = 0x00;
+	 // p_ch_user_data[23] = 0x01;
+	 // // p_default_multicast_data = p_default_multi_locator->param_data;
+
+	 // // p_locator = &(p_default_muilti_locator->locator);
+	 // // p_locator
+
+	 // // p_locator->
+	 // // p_locator->port =
+	 // // p_meta_m
+	 // // uint32_t kind;
+	 // // uint32_t port;
+
+	 // p_default_uni_locator = &(p_core_sz_data->default_uni);
+	 // p_param_info = &(p_default_uni_locator->info);
+	 // p_param_info->param_id = (uint16_t)0x0031;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_default_unicast_locator) - sizeof(struct param_info));
+	 // p_locator = &(p_default_uni_locator->locator);
+	 // p_locator->kind = (uint32_t)0x01;
+	 // p_locator->port = USER_UNICAST_PORT(domain_id, participant_id);
+
+
+
+
+	 // p_lease_duration = &(p_core_sz_data->participant_lease_dur);
+	 // p_param_info = &(p_lease_duration->info);
+	 // p_param_info->param_id = (uint16_t)0x02;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_participant_lease_duration) - sizeof(struct param_info));
+	 // p_lease_dur = &(p_lease_duration->lease_dur);
+	 // p_lease_dur->seconds = (uint32_t)0x0a;
+	 // p_lease_dur->fraction = (uint32_t)0x00;
+
+	 // p_part_guid = &(p_core_sz_data->participant_guid);
+	 // p_param_info = &(p_part_guid->info);
+	 // p_param_info->param_id = (uint16_t)0x50;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_participant_guid) - sizeof(struct param_info));
+	 // p_guid = &(p_part_guid->this_guid);
+	 // p_guid_prefix = &(p_guid->prefix);
+	 // p_entity_id = &(p_guid->last_id);
+	 // p_guid_prefix->host_id = htonl(0xc0a80ab7);
+	 // p_guid_prefix->app_id = htonl(0xdffbff64);
+	 // p_guid_prefix->instance_id = htonl(0xb1190000);
+	 // p_entity_id->key[0] = 0x00;
+	 // p_entity_id->key[1] = 0x00;
+	 // p_entity_id->key[2] = 0x01;
+	 // p_entity_id->kind = 0xc1;
+
+	 // p_endpoint_set = &(p_core_sz_data->endpoint_set);
+	 // p_param_info = &(p_endpoint_set->info);
+	 // p_param_info->param_id = (uint16_t)0x58;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_builtin_endpoint_set) - sizeof(struct param_info));
+	 // p_endpoint_set->flags = 0x0c3f;
+
+	 // // p_guid_prefix->host_id = htonl(0xc0a80ab7);
+	 // // p_guid_prefix->app_id = htonl(0xdffbff64);
+	 // // p_guid_prefix->instance_id = htonl(0xb1190000);
+
+	 // p_user_data = &(p_core_sz_data->user_data);
+	 // p_param_info = &(p_user_data->info);
+	 // p_param_info->param_id = 0x8000;
+	 // p_param_info->param_len = (uint16_t)(sizeof(struct sd_user_data) - sizeof(struct param_info));
+	 // p_ch_user_data = p_user_data->parameter_data;
+	 // p_ch_user_data[0] = (unsigned char)0x02;
+	 // p_ch_user_data[1] = (unsigned char)0x08;
+	 // p_ch_user_data[2] = (unsigned char)0x00;
+	 // p_ch_user_data[3] = (unsigned char)0x00;
+
+	 // // p_param_info->param_len =
+
+	 // p_param_sentinel = &(p_core_sz_data->sentinel);
+	 // p_param_sentinel->param_id = (uint16_t)0x01;
+
+
+	 ///* p_data->octets_to_next_header = 0;
+	 // p_data->octets_to_next_header += (uint16_t)sizeof(struct sm_data);
+	 // p_data->octets_to_next_header -= 4;*/
+
+	 // submsg_size = (int)(sizeof(struct sm_data));
+	 /*submsg_size = 1;
+	 return submsg_size;*/
 }
 
 //int put_user_data(char *user_data_pos, size_t *p_user_data_size)
@@ -1083,7 +1152,7 @@ int write_submessage_header(struct Submessage* p_submessage, enum SubmessageKind
 	case DATA:
 	{
 		write_submessageId = 0x15;
-		if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER || data_kind == DATA_KIND_PARTICIPANT_DISCOVERY)
+		if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER || data_kind == DATA_KIND_PARTICIPANT_DISCOVERY || data_kind == DATA_KIND_USER_DATA)
 		{
 			write_submessage_flag |= INLINE_QOS;
 		}
@@ -1249,7 +1318,7 @@ void my_packet_receive_handler_callback(unsigned char* param, const struct pcap_
 int add_submessage_to_packet(char* packet_buffer, struct Submessage* p_submessage)
 {
 	struct SubmessageHeader* p_subHeader;
-	unsigned char* submessage_payload_pos;
+	char* submessage_payload_pos;
 	int copy_size;
 	if (NULL == p_submessage)
 	{
@@ -1325,7 +1394,6 @@ int add_reader_writer_entity_id_to_submessage(struct Submessage* p_submessage, e
 	//  writer[4];
 	if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY)
 	{
-
 		reader_writer[0] = 0x00;
 		reader_writer[1] = 0x01;
 		reader_writer[2] = 0x00;
@@ -1334,7 +1402,6 @@ int add_reader_writer_entity_id_to_submessage(struct Submessage* p_submessage, e
 		reader_writer[5] = 0x01;
 		reader_writer[6] = 0x00;
 		reader_writer[7] = 0xc2;
-
 	}
 	else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER)
 	{
@@ -1362,7 +1429,15 @@ int add_reader_writer_entity_id_to_submessage(struct Submessage* p_submessage, e
 	}
 	else // User Data Reader || User Data Writer....
 	{
-		assert(false);
+		//assert(false);
+		reader_writer[0] = 0x00;
+		reader_writer[1] = 0x00;
+		reader_writer[2] = 0x04;
+		reader_writer[3] = 0xc7;
+		reader_writer[4] = 0x00;
+		reader_writer[5] = 0x00;
+		reader_writer[6] = 0x04;
+		reader_writer[7] = 0xc2;
 		//_ASSERT_EXPT
 	}
 	cpy_msg_size = 8;
@@ -1406,8 +1481,16 @@ int add_inline_qos_to_submessage(struct Submessage* p_submessage, struct real_da
 	struct sd_parameter_sentinel* p_sentinel;
 	struct param_info* p_info;
 	struct guid* p_guid;  //4 + 4 + 4 + 4 ->16 bytes
+	//struct SubmessageHeader* p_subHeader;
+	//p_subHeader = p_submessage->
+
 
 	if (p_rData == NULL)
+	{
+		return 0;
+	}
+
+	if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_READER)
 	{
 		return 0;
 	}
@@ -1429,6 +1512,7 @@ int add_inline_qos_to_submessage(struct Submessage* p_submessage, struct real_da
 	return cpy_msg_size;
 }
 
+int add_encapsulation_info_to_submessage(struct Submessage* p_submessage, struct real_data* p_data, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
 int add_protocol_version_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
 {
@@ -1454,6 +1538,237 @@ int add_protocol_version_to_submessage(struct Submessage* p_submessage, struct r
 
 }
 
+int add_endpoint_guid_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
+{
+	//return 0;
+	uint32_t endpoint_guid[5];
+	int cpy_msg_size;
+	cpy_msg_size;
+	uint32_t* buffer = (uint32_t*)(&(p_submessage->buffer[p_submessage->buffer_write_pos]));
+	if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY)
+	{
+		return 0;
+	}
+	else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_READER || data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER)
+	{
+		endpoint_guid[0] = 0x0010005a;
+		/*endpoint_guid[1] = 0x0000000;
+		endpoint_guid[2] = 0x0000000;
+		endpoint_guid[3] = 0x0000000;
+		endpoint_guid[4] = 0x0000000;*/
+	}
+	else if (data_kind == DATA_KIND_USER_DATA)
+	{
+
+	}
+	//else
+	//{
+	//	//endpoint_guid[0] = 0x001000
+	//}
+	endpoint_guid[0] = 0x0010005a;
+	endpoint_guid[1] = 0x0000000;
+	endpoint_guid[2] = 0x0000000;
+	endpoint_guid[3] = 0x0000000;
+	endpoint_guid[4] = 0x0000000;
+	//endpoint_guid[1] = host id
+	//endpoint_guid[2] = app id
+	//endpoint_guid[3] = instance id
+	//endpoint_guid[4] = entity id;
+	//buffer[0] = end
+	//memcpy(buffer, )
+	//buffer[1] =
+	cpy_msg_size = 5 * sizeof(uint32_t);
+	memcpy_s(&(p_submessage->buffer[p_submessage->buffer_write_pos]), DEFAULT_SUBMESSAGE_BUFFER_SIZE, endpoint_guid, cpy_msg_size);
+	p_submessage->buffer_write_pos += cpy_msg_size;
+	return cpy_msg_size;
+}
+
+int add_group_entity_id_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
+{
+	char group_entity_id[8];
+	int cpy_msg_size;
+	int idx;
+	if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY || data_kind == DATA_KIND_USER_DATA)
+	{
+		return 0;
+	}
+	idx = 0;
+	group_entity_id[idx++] = 0x00;
+	group_entity_id[idx++] = 0x53;
+	group_entity_id[idx++] = 0x00;
+	group_entity_id[idx++] = 0x04;
+	group_entity_id[idx++] = 0x00;
+	group_entity_id[idx++] = 0x00;
+	group_entity_id[idx++] = 0x08;
+	if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER)
+	{
+		group_entity_id[idx++] = 0x08;
+	}
+	else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_READER)
+	{
+		group_entity_id[idx++] = 0x09;
+	}
+	else
+	{
+		group_entity_id[idx++] = 0x00;
+	}
+	cpy_msg_size = 8;
+	memcpy_s(&(p_submessage->buffer[p_submessage->buffer_write_pos]), DEFAULT_SUBMESSAGE_BUFFER_SIZE, group_entity_id, cpy_msg_size);
+	p_submessage->buffer_write_pos += cpy_msg_size;
+	return cpy_msg_size;
+	//group_entity_id[idx++] = 0x08;
+	//return 0;
+	//uint32_t
+}
+
+int add_type_name_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
+{
+	int cpy_msg_size;
+	int type_name_len;
+	char type_name[50];
+	if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY || data_kind == DATA_KIND_USER_DATA)
+	{
+		return 0;
+	}
+
+	type_name[0] = 0x07;
+	type_name[1] = 0x00;
+	type_name[2] = 0x10;
+	type_name[3] = 0x00;
+	type_name_len = (int)strlen(p_rData->type_name);//4 param id(2bytes) + param len (2bytes) + topic name + '\0'
+	type_name[4] = (uint8_t)type_name_len;
+	type_name[5] = 0x00;
+	type_name[6] = 0x00;
+	type_name[7] = 0x00;
+	strcpy_s(&(type_name[8]), 42, p_rData->type_name);
+	//cpy_msg_size = 4 + type_name_len + 1;
+	cpy_msg_size = 4 + 0x10;
+	memcpy_s(&(p_submessage->buffer[p_submessage->buffer_write_pos]), DEFAULT_SUBMESSAGE_BUFFER_SIZE, type_name, cpy_msg_size);
+	p_submessage->buffer_write_pos += cpy_msg_size;
+
+	return cpy_msg_size;
+}
+
+int add_type_consistency_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
+{
+	uint32_t type_consistency_data[3];
+	int cpy_msg_size;
+	if (data_kind != DATA_KIND_ENDPOINT_DISCOVERY_READER)
+	{
+		return 0;
+	}
+	type_consistency_data[0] = 0x00080074;
+	type_consistency_data[1] = 0x01010100;
+	type_consistency_data[2] = 0x00410000;
+
+	cpy_msg_size = sizeof(uint32_t) * 3;
+	memcpy_s(&(p_submessage->buffer[p_submessage->buffer_write_pos]), DEFAULT_SUBMESSAGE_BUFFER_SIZE, type_consistency_data, cpy_msg_size);
+	p_submessage->buffer_write_pos += cpy_msg_size;
+	return cpy_msg_size;
+}
+
+int add_reliability_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
+{
+	int cpy_msg_size;
+	if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY || data_kind == DATA_KIND_USER_DATA)
+	{
+		return 0;
+	}
+	uint32_t reliability[4];
+	reliability[0] = 0x000c001a;
+	reliability[1] = 0x01;
+	reliability[2] = 0x01;
+	reliability[3] = 0x01;
+	cpy_msg_size = sizeof(uint32_t) * 4;
+	memcpy_s(&(p_submessage->buffer[p_submessage->buffer_write_pos]), DEFAULT_SUBMESSAGE_BUFFER_SIZE, reliability, cpy_msg_size);
+	p_submessage->buffer_write_pos += cpy_msg_size;
+	//return 0;
+	return cpy_msg_size;
+}
+
+int add_entity_name_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
+{
+	static const char writer[] = "Writer";
+	static const char reader[] = "Reader";
+	unsigned char* buffer;
+	char entity_name[50];
+	struct param_info entity_name_param_info;
+	int cpy_msg_size;
+	int entity_name_len;
+	uint32_t type_name_len;
+	//int param_len;
+	if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY || data_kind == DATA_KIND_USER_DATA)
+	{
+		return 0;
+	}
+	buffer = &(p_submessage->buffer[p_submessage->buffer_write_pos]);
+	type_name_len = (uint32_t)(strlen(p_rData->type_name));
+	entity_name_len = type_name_len + 6;//Writer Reader ++
+	entity_name_len++; // '\0'
+	//entity_name_len += 4;
+
+	if (entity_name_len % 4) //divide by 4
+	{
+		entity_name_param_info.param_len = ((entity_name_len >> 2) + 1) << 2;  // add padding
+	}
+	else
+	{
+		entity_name_param_info.param_len = entity_name_len;
+	}
+	entity_name_param_info.param_len += 4;
+	//entity_name_param_info.param_len += 4;
+	entity_name_param_info.param_id = 0x0062;
+	memcpy_s(buffer, 50, &entity_name_param_info, sizeof(struct param_info));
+	memcpy_s(&(buffer[4]), 46, &entity_name_len, sizeof(uint32_t));
+	strcpy_s(entity_name, 50, p_rData->type_name);
+
+	if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER)
+	{
+		strcat_s(entity_name, 50, writer);
+	}
+	else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_READER)
+	{
+		strcat_s(entity_name, 50, reader);
+	}
+	cpy_msg_size = 4 + entity_name_param_info.param_len;
+	memcpy_s(&buffer[8], DEFAULT_SUBMESSAGE_BUFFER_SIZE, entity_name, cpy_msg_size);
+	p_submessage->buffer_write_pos += cpy_msg_size;
+
+	return cpy_msg_size;
+}
+
+int add_topic_name_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
+{
+	int cpy_msg_size;
+	char topic_name[50];
+	int topic_name_len;
+	if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY || data_kind == DATA_KIND_USER_DATA)
+	{
+		return 0;
+	}
+	topic_name[0] = 0x05;
+	topic_name[1] = 0x00;
+	topic_name[2] = 0x10;
+	topic_name[3] = 0x00;
+	topic_name_len = (int)strlen(p_rData->topic_name);
+	topic_name[4] = (uint8_t)topic_name_len;
+	topic_name[5] = 0x00;
+	topic_name[6] = 0x00;
+	topic_name[7] = 0x00;
+	strcpy_s(&(topic_name[8]), 42, p_rData->topic_name);
+	cpy_msg_size = 4 + topic_name_len + 1;//4 param id(2bytes) + param len (2bytes) + topic name + '\0'
+	cpy_msg_size = 0x10 + 4;
+	/*for (int idx = 4 + topic_name_len + 1; idx < cpy_msg_size; idx++)
+	{
+		topic_name[idx] = 0x00;
+	}*/
+
+	memcpy_s(&(p_submessage->buffer[p_submessage->buffer_write_pos]), DEFAULT_SUBMESSAGE_BUFFER_SIZE, topic_name, cpy_msg_size);
+	p_submessage->buffer_write_pos += cpy_msg_size;
+	return cpy_msg_size;
+
+}
+
 int add_vendor_id_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
 {
 	//     p_param_vendor_id = &(p_core_sz_data->vendor_id);
@@ -1461,6 +1776,10 @@ int add_vendor_id_to_submessage(struct Submessage* p_submessage, struct real_dat
 	// p_param_info->param_id = (uint16_t)0x16;
 	int cpy_msg_size;
 	uint16_t vendor_id_info[4];
+	if (data_kind == DATA_KIND_USER_DATA)
+	{
+		return 0;
+	}
 	cpy_msg_size = 3 * sizeof(uint16_t) + 2;//extra
 	// p_param_info->param_len = (uint16_t)(sizeof(struct sd_parameter_vendor_id) - sizeof(struct param_info));
 	// p_ven_id = &(p_param_vendor_id->ven_id);
@@ -1482,6 +1801,22 @@ int add_locator_info_to_submessage(struct Submessage* p_submessage, struct real_
 	int cast_info_idx;
 	int cpy_msg_size;
 	uint32_t cast_info[30];
+	struct ip_buffer cur_ip_buffer;
+	struct in_addr cur_addr;
+	size_t uchar_Size;
+	if (data_kind != DATA_KIND_PARTICIPANT_DISCOVERY)
+	{
+		return 0;
+	}
+
+	if (!GetDefaultMyIP(&cur_ip_buffer))
+	{
+		return 0;
+	}
+
+	cur_addr.S_un.S_addr = inet_addr(cur_ip_buffer.buf);
+
+	//cur_addr.S_un.S_un_b.s_b1
 
 	cast_info_idx = 0;
 	cast_info[cast_info_idx++] = 0x00180033;   //0x33 -> param id   0x28 ->
@@ -1492,16 +1827,15 @@ int add_locator_info_to_submessage(struct Submessage* p_submessage, struct real_
 	cast_info[cast_info_idx++] = 0x00;
 	cast_info[cast_info_idx++] = 0x00;
 
-
-
 	cast_info[cast_info_idx++] = 0x00180032;
 	cast_info[cast_info_idx++] = 0x01;
 	cast_info[cast_info_idx++] = SPDP_WELL_KNOWN_UNICAST_PORT(domain_id, participant_id);
 	cast_info[cast_info_idx++] = 0x00;
 	cast_info[cast_info_idx++] = 0x00;
 	cast_info[cast_info_idx++] = 0x00;
-	cast_info[cast_info_idx++] = 0x00;
-
+	uchar_Size = sizeof(cur_addr);
+	memcpy_s(&(cast_info[cast_info_idx++]), (size_t)30 - cast_info_idx, &(cur_addr.S_un), sizeof(cur_addr));
+	//cast_info[cast_info_idx++] = cur_addr.S_un.S_un_b.s_b4;
 
 
 
@@ -1524,8 +1858,9 @@ int add_locator_info_to_submessage(struct Submessage* p_submessage, struct real_
 	cast_info[cast_info_idx++] = 0x00;
 	cast_info[cast_info_idx++] = 0x00;
 	cast_info[cast_info_idx++] = 0x00;
-	cast_info[cast_info_idx++] = 0x00;
-
+	//cast_info[cast_info_idx++] = cur_addr.S_un.S_un_b.s_b4;
+	memcpy_s(&(cast_info[cast_info_idx++]), (size_t)(30 - cast_info_idx) * 4 , &(cur_addr.S_un), sizeof(cur_addr));
+	//cast_info_idx++;
 	cpy_msg_size = sizeof(uint32_t) * cast_info_idx;
 
 	memcpy(&(p_submessage->buffer[p_submessage->buffer_write_pos]), cast_info, cpy_msg_size);
@@ -1539,6 +1874,10 @@ int add_lease_duration_to_submessage(struct Submessage* p_submessage, struct rea
 	int cpy_msg_size;
 	uint32_t lease_dur[4];
 	// cpy_msg_siz
+	if (data_kind != DATA_KIND_PARTICIPANT_DISCOVERY)
+	{
+		return 0;
+	}
 	lease_dur[0] = 0x00080002;
 	lease_dur[1] = 0x0a;
 	lease_dur[2] = 0x00;
@@ -1555,6 +1894,10 @@ int add_participant_guid_to_submessage(struct Submessage* p_submessage, struct r
 {
 	uint32_t guid_info[5];
 	int cpy_msg_size;
+	if (data_kind != DATA_KIND_PARTICIPANT_DISCOVERY)
+	{
+		return  0;
+	}
 	//p_part_guid = &(p_core_sz_data->participant_guid);
 	guid_info[0] = 0x00100050;
 	guid_info[1] = htonl(0xc0a80ab7);
@@ -1591,7 +1934,10 @@ int add_enpoint_info_to_submessage(struct Submessage* p_submessage, struct real_
 	// p_endpoint_set->flags = 0x0c3f;
 	uint32_t flag_info[2];
 	int cpy_msg_size;
-
+	if (data_kind != DATA_KIND_PARTICIPANT_DISCOVERY)
+	{
+		return 0;
+	}
 	flag_info[0] = 0x00040058;
 	flag_info[1] = 0x0c3f;
 
@@ -1603,6 +1949,74 @@ int add_enpoint_info_to_submessage(struct Submessage* p_submessage, struct real_
 
 	return cpy_msg_size;
 
+}
+int process_user_topic_data(struct Submessage* p_submessage, struct real_data* p_rData)
+{
+	int element_count;
+	enum DataElementType data_element_type;
+	uint32_t str_len;
+	element_count = p_rData->element_count;
+	char buffer[100];
+	int cpy_msg_size;
+	int cur_buffer_idx;
+
+	static const char string_data[] = "HelloWorld";
+	static const uint32_t long_data = 5;
+	int str_len_with_padding;
+	//i
+	cpy_msg_size = 0;
+	str_len = (uint32_t)strlen(string_data);
+	str_len++;
+	//buffer = &(p_submessage->buffer[p_submessage->buffer_write_pos]);
+	//buffer = (c
+	cur_buffer_idx = 0;
+	buffer[0] = 0x00;
+	buffer[1] = 0x01;
+	buffer[2] = 0x00;
+	buffer[3] = 0x00;
+	cur_buffer_idx += 4;
+	if (str_len % 4)
+	{
+		str_len_with_padding = ((str_len >> 2) + 1) << 2;
+	}
+	else
+	{
+		str_len_with_padding = str_len;
+	}
+
+	for (int idx = 0; idx < element_count; idx++)
+	{
+		data_element_type = (enum DataElementType)(p_rData->element_type[idx]);
+		switch (data_element_type)
+		{
+		case DATA_ELEMENT_TYPE_INT:
+		{
+			memcpy(&(buffer[cur_buffer_idx]), &long_data, sizeof(uint32_t));
+			cur_buffer_idx += sizeof(uint32_t);
+		}
+		break;
+
+		case DATA_ELEMENT_TYPE_STRING:
+		{
+			memcpy(&(buffer[cur_buffer_idx]), &str_len, sizeof(uint32_t));
+			cur_buffer_idx += sizeof(uint32_t);
+			strcpy_s(&(buffer[cur_buffer_idx]), (rsize_t)100 - cur_buffer_idx, string_data);
+			cur_buffer_idx += str_len_with_padding;
+		}
+		break;
+
+		default:
+		{
+			assert(false);
+		}
+		break;
+
+		}
+	}
+	memcpy(&(p_submessage->buffer[p_submessage->buffer_write_pos]), buffer, cur_buffer_idx);
+	p_submessage->buffer_write_pos += cur_buffer_idx;
+
+	return cur_buffer_idx;
 }
 
 int add_user_data_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind)
@@ -1618,9 +2032,24 @@ int add_user_data_to_submessage(struct Submessage* p_submessage, struct real_dat
 	// p_ch_user_data[3] = (unsigned char)0x00;
 	uint32_t user_data[3];
 	int cpy_msg_size;
-
-	user_data[0] = 0x00088000;
-	user_data[1] = 0x00000208;
+	if (data_kind == DATA_KIND_PARTICIPANT_DISCOVERY)
+	{
+		user_data[0] = 0x00088000;
+		user_data[1] = 0x00000000;
+		user_data[2] = 0x11cc11cc;
+	}
+	else if (data_kind == DATA_KIND_ENDPOINT_DISCOVERY_WRITER || data_kind == DATA_KIND_ENDPOINT_DISCOVERY_READER)
+	{
+		user_data[0] = 0x00088200;
+		user_data[1] = 0x00000000;
+		user_data[2] = 0x11cc11cc;
+	}
+	else if(data_kind == DATA_KIND_USER_DATA)
+	{
+		return process_user_topic_data(p_submessage, p_rData);
+	}
+	user_data[0] = 0x00088200;
+	user_data[1] = 0x00000000;
 	user_data[2] = 0x11cc11cc;
 	cpy_msg_size = sizeof(uint32_t) * 3;
 	memcpy(&(p_submessage->buffer[p_submessage->buffer_write_pos]), user_data, cpy_msg_size);
@@ -1648,16 +2077,66 @@ int add_sentinel_to_submessage(struct Submessage* p_submessage, struct real_data
 int add_octets_to_inlineQos_to_submessage(struct Submessage* p_submessage, const uint16_t octets_to_inline_qos)
 {
 	char* temp_buffer;
-	
+
 	//memmove(p_submessage->buff)
 	//char temp_buffer[]
 	// 
-	temp_buffer = (char*)malloc(p_submessage->buffer_write_pos + 10);
-	memcpy_s(temp_buffer, p_submessage->buffer_write_pos + 10, &(p_submessage->buffer[2]), p_submessage->buffer_write_pos);
+	temp_buffer = (char*)malloc((size_t)p_submessage->buffer_write_pos + 10);
+	memcpy_s(temp_buffer, (size_t)p_submessage->buffer_write_pos + 10, &(p_submessage->buffer[2]), p_submessage->buffer_write_pos);
 	memcpy_s(&(p_submessage->buffer[4]), DEFAULT_SUBMESSAGE_BUFFER_SIZE, temp_buffer, p_submessage->buffer_write_pos);
 	memcpy_s(&(p_submessage->buffer[2]), DEFAULT_SUBMESSAGE_BUFFER_SIZE, &octets_to_inline_qos, sizeof(uint16_t));
 	p_submessage->buffer_write_pos += (uint32_t)sizeof(uint16_t);
 	free(temp_buffer);
 
 	return sizeof(uint16_t);
+}
+
+int add_encapsulation_info_to_submessage(struct Submessage* p_submessage, struct real_data* p_data, enum SubmessageKind sub_kind, enum DataKind data_kind)
+{
+	int cpy_msg_size;
+	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x00;
+	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x03;
+	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x00;
+	p_submessage->buffer[p_submessage->buffer_write_pos++] = 0x00;
+	cpy_msg_size = 4;
+	return cpy_msg_size;
+	//return 0;
+}
+
+int GetDefaultMyIP(struct ip_buffer* buffer)
+{
+	char host[256];
+	char* ip_buffer;
+	int host_name;
+	struct hostent* host_entry;
+	struct in_addr* p_addr;
+	//struct addrinfo hints;
+	//struct addrinfo* pResult;
+	/*ZeroMemory(&hints, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_protocol = IPPROTO_UDP;
+	int get_addr_result;*/
+	if (NULL == buffer)
+	{
+		return 0;
+	}
+	p_addr = NULL;
+	host_name = gethostname(host, 256);
+	if (host_name == -1)
+	{
+		return 0;
+	}
+	host_entry = gethostbyname(host);
+	//AF_INET
+	//get_addr_result = getaddrinfo(host, NULL, &hints, &pResult);
+	if (host_entry == NULL)
+	{
+		return 0;
+	}
+
+	p_addr = (struct in_addr*)(host_entry->h_addr_list[0]);
+	ip_buffer = inet_ntoa(*p_addr);
+	strcpy_s(buffer->buf, sizeof(struct ip_buffer), ip_buffer);
+	return 1;
 }

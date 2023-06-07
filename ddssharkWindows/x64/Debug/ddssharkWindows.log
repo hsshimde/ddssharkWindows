@@ -1,0 +1,4 @@
+﻿  rtps.c
+C:\gurumnet\ddssharkWindows\ddssharkWindows\src\rtps.c(1950,12): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+C:\gurumnet\ddssharkWindows\ddssharkWindows\src\rtps.c(2016,8): warning C4101: 'buffer': unreferenced local variable
+  ddssharkWindows.vcxproj -> C:\gurumnet\ddssharkWindows\ddssharkWindows\x64\Debug\ddssharkWindows.exe

@@ -484,3 +484,10 @@ int add_entity_name_to_submessage(struct Submessage* p_submessage, struct real_d
 int add_reliability_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
 
 int add_type_consistency_to_submessage(struct Submessage* p_submessage, struct real_data* p_rData, enum SubmessageKind sub_kind, enum DataKind data_kind);
+
+struct ip_buffer
+{
+    char buf[30];
+};
+
+int GetDefaultMyIP(struct ip_buffer* buffer);
